@@ -194,8 +194,7 @@ func GetOfflineMsg(fromUser string) ([]string, string) {
 		var MsgList []string
 		json.Unmarshal([]byte(tmp_user.Msg), &MsgList)
 
-		tmpMsgList, _ := json.Marshal("")
-		tmp_user.Msg = string(tmpMsgList)
+		tmp_user.Msg = ""
 		_, err := o.Update(&tmp_user)
 		if err == nil {
 			return MsgList, "ok"
@@ -203,4 +202,21 @@ func GetOfflineMsg(fromUser string) ([]string, string) {
 		return nil, err.Error()
 	}
 	return nil, err.Error()
+}
+
+func DelOfflineMsg(fromUser string) string {
+	o := orm.NewOrm()
+
+	var tmp_user User
+	err := o.QueryTable(User{}).Filter("Username", fromUser).One(&tmp_user)
+	if err == nil {
+		tmp_user.Msg = ""
+		_, err := o.Update(&tmp_user)
+		if err == nil {
+			return "ok"
+		}
+		return err.Error()
+	}
+	return err.Error()
+
 }

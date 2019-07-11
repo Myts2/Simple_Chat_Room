@@ -66,6 +66,7 @@ func main() {
 			}
 			offlineMsgList, err := database.GetOfflineMsg(userchat.username)
 			if err == "ok" {
+				database.DelOfflineMsg(userchat.username)
 				sess_self, ok := srv.GetSession(userchat.username)
 				if ok {
 					for _, msg_raw := range offlineMsgList {

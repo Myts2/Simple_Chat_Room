@@ -165,7 +165,6 @@ func main() {
 					result = AddFriend(command[1])
 				case "del":
 					result = DelFriend(command[1])
-
 				}
 				cui.RecvUser <- "Global"
 				cui.RecvMsg <- result
