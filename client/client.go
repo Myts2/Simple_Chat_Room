@@ -7,7 +7,7 @@ import (
 	"github.com/Myts2/Simple_Chat_Room/RSA"
 	"github.com/Myts2/Simple_Chat_Room/cui"
 	"github.com/google/uuid"
-	"github.com/henrylee2cn/teleport"
+	tp "github.com/henrylee2cn/teleport"
 	"io/ioutil"
 	"log"
 	"strconv"

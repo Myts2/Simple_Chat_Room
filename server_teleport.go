@@ -9,7 +9,7 @@ import (
 	"time"
 
 	//micro "github.com/xiaoenai/tp-micro"
-	"github.com/henrylee2cn/teleport"
+	tp "github.com/henrylee2cn/teleport"
 )
 
 //go:generate go build $GOFILE
