@@ -25,6 +25,9 @@ var addFriendName = make(chan string)
 var addFriendFrom = make(chan string)
 var addFriendStatus = make(chan string)
 
+var delFriendName = make(chan string)
+var delFriendFrom = make(chan string)
+
 var IFonlineUser = make(chan string)
 var IFonlineStatus = make(chan string)
 
@@ -116,6 +119,20 @@ func main() {
 				}
 			} else {
 				addFriendStatus <- "offline"
+			}
+		}
+	}()
+	go func() {
+		for {
+			del_who := <-delFriendName
+			del_from := <-delFriendFrom
+			sess, ok := srv.GetSession(del_who)
+			if ok {
+				var result string
+				sess.Call(
+					"/cli/call/del_confirm",
+					del_from,
+					&result)
 			}
 		}
 	}()
@@ -237,7 +254,8 @@ func (m *Front) DelFriend(arg_raw *string) (string, *tp.Rerror) {
 		if !Contains(friendList, del_who) {
 			return "No this user!", nil
 		}
-
+		delFriendName <- del_who
+		delFriendFrom <- username
 		database.DelFriend(username, del_who)
 		database.DelFriend(del_who, username)
 		return "del ok", nil

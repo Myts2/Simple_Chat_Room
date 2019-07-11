@@ -160,12 +160,15 @@ func main() {
 					}
 				default:
 				}
-				switch command[0] {
-				case "add":
-					result = AddFriend(command[1])
-				case "del":
-					result = DelFriend(command[1])
+				if len(command) == 2 {
+					switch command[0] {
+					case "add":
+						result = AddFriend(command[1])
+					case "del":
+						result = DelFriend(command[1])
+					}
 				}
+
 				cui.RecvUser <- "Global"
 				cui.RecvMsg <- result
 			} else {
@@ -323,6 +326,9 @@ func DelFriend(deluser string) string {
 		&result,
 		tp.WithSetMeta("push_status", "yes"),
 	)
+	if result == "del ok" {
+		cui.GetFriend <- true
+	}
 	//fmt.Println(result)
 	return result
 }
@@ -379,6 +385,18 @@ func (c *call) AddConfirm(arg_raw *string) (string, *tp.Rerror) {
 	} else {
 		return "deny", nil
 	}
+}
+
+func (c *call) DelConfirm(arg_raw *string) (string, *tp.Rerror) {
+	delWho := *arg_raw
+	cui.RecvUser <- "Global"
+	cui.RecvMsg <- fmt.Sprintf("%s del you", delWho)
+
+	go func() {
+		time.Sleep(time.Second * 1)
+		cui.GetFriend <- true
+	}()
+	return "ok", nil
 }
 
 func (c *p2pcall) KeySA(arg_raw *string) (string, *tp.Rerror) {

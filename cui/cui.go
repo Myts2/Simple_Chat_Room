@@ -362,7 +362,9 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 }
 
 func sendMsg(g *gocui.Gui, v *gocui.View) error {
-
+	_, err := g.SetCurrentView("FriendList")
+	vFriendList, _ := g.View("FriendList")
+	getLine(g, vFriendList)
 	msg := v.Buffer()
 	if msg == "" {
 		return nil
