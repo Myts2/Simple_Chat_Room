@@ -105,6 +105,9 @@ func updateMsg(recvuser string, g *gocui.Gui) {
 		}
 		Msgtime := time.Now().String()[:19]
 		fmt.Fprintf(v, "%s %s:\n   %s\n", recvuser, Msgtime, recvmsg)
+		for _, _ = range v.BufferLines() {
+			cursorDown(g, v)
+		}
 		return nil
 	})
 }
@@ -277,11 +280,15 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 func sendMsg(g *gocui.Gui, v *gocui.View) error {
 
 	msg := v.Buffer()
+	if msg == "" {
+		return nil
+	}
 	ChatUser <- Curfriend
 	Chatmsg <- msg
 	vMsgBox, err := g.View("msgBox")
 	Msgtime := time.Now().String()[:19]
 	fmt.Fprintf(vMsgBox, "%s %s:\n   %s\n", CurUser, Msgtime, msg)
+	vMsgBox.MoveCursor(0, len(v.BufferLines()), false)
 	v.Clear()
 	v.SetCursor(0, 0)
 	v.SetOrigin(0, 0)

@@ -1,65 +1,64 @@
 package main
 
 import (
-	"crypto/md5"
 	"crypto/rc4"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"github.com/Myts2/Simple_Chat_Room/RSA"
+	"github.com/Myts2/Simple_Chat_Room/cui"
 	"github.com/google/uuid"
 	"github.com/henrylee2cn/teleport"
 	"io/ioutil"
 	"log"
-	"crypto/rand"
-	"math"
-	"math/big"
 	"strconv"
 	"strings"
+	"time"
 )
 
 //go:generate go build $GOFILE
 
 type Arg struct {
-	username string
-	pass_md5 string
+	username  string
+	pass_md5  string
 	from_name string
-	to_name string
-	content []byte
-	cert string
-
+	to_name   string
+	content   []byte
+	cert      string
 }
 
 var myPubkey string
 var myPrikey string
 
-var KeySAUser = make(chan(string))
-var KeySAUserPub = make(chan(string))
+var KeySAUser = make(chan (string))
+var KeySAUserPub = make(chan (string))
 
-var UserIPName = make(chan(string))
-var UserIPPort = make(chan(string))
+var UserIPName = make(chan (string))
+var UserIPPort = make(chan (string))
 
 var Session = make(map[string]tp.Session)
 var SessionKey = make(map[string]*rc4.Cipher)
+
+var addConfirm = make(chan (string))
+var reqConfirm = make(chan (bool))
 
 var Token string
 var CurUser string
 var ServerSession tp.Session
 
-func GenArg(args ...string) (string){
+func GenArg(args ...string) string {
 	return strings.Join(args, ",")
 }
 
-func P2pServer(){
+func P2pServer() {
 	defer tp.FlushLogger()
 	// graceful
 	go tp.GraceSignal()
-
+	tp.SetLoggerLevel("OFF")
 	// server peer
 	srv := tp.NewPeer(tp.PeerConfig{
 		CountTime:   true,
 		ListenPort:  7080,
-		PrintDetail: true,
+		PrintDetail: false,
 	})
 	// srv.SetTLSConfig(tp.GenerateTLSConfigForServer())
 
@@ -71,78 +70,40 @@ func P2pServer(){
 }
 
 func main() {
-	username := flag.String("u","","Username")
-	password := flag.String("p","","password")
-	sendmsg := flag.Bool("send",false,"sendmsg")
-	to_user := flag.String("t","","to_user")
-	msg := flag.String("m","","msg")
-	reg := flag.Bool("reg",false,"register")
-	reg_name := flag.String("rn","","reg_name")
-	reg_pass := flag.String("rp","","reg_pass")
-	add := flag.Bool("add",false,"register")
-	addUser := flag.String("au","","addUser")
-	del := flag.Bool("del",false,"del")
-	delUser := flag.String("du","","deluser")
-	//reg_cert := flag.String("rc","","reg_cert")
-	flag.Parse()
-
-
-
-	if *reg{
-		Register(*reg_name,*reg_pass)
-		return
-	}
-	Login(*username,*password)
-	if *sendmsg{
-		Chat(*to_user,*msg)
-	}
-	if *add{
-		AddFriend(*addUser)
-	}
-	if *del{
-		DelFriend(*delUser)
-	}
-
-	//user2_token := result
-
-
-	select {
-
-	}
-}
-
-func ClientInit(){
+	//fmt.Println("OK")
 	go P2pServer()
-
-	defer tp.SetLoggerLevel("ERROR")()
-
+	defer tp.SetLoggerLevel("OFF")()
 	cli := tp.NewPeer(
 		tp.PeerConfig{},
 	)
+	//fmt.Println("OK")
 	defer cli.Close()
 	group := cli.SubRoute("/cli")
 	group.RoutePush(new(push))
 	group.RouteCall(new(call))
-
-
-	sess, err := cli.Dial("172.17.0.1:9090") //external IP
+	//fmt.Println("OK")
+	var ServerIP string
+	fmt.Print("Server IP:")
+	fmt.Scanf("%s", &ServerIP)
+	sess, err := cli.Dial(ServerIP + ":9090") //external IP
 	if err != nil {
-		tp.Fatalf("%v", err)
+		panic(err)
 	}
+	//fmt.Println("OK")
 	ServerSession = sess
-	go func(){
-		for{
+	go func() {
+		for {
 			ToUser := <-KeySAUser
 			var ToUserPub string
 			sess.Call(
 				"/srv/front/push_pub",
-				GenArg(CurUser,Token,ToUser),
+				GenArg(CurUser, Token, ToUser),
 				&ToUserPub,
 			)
-			KeySAUserPub<-ToUserPub
+			KeySAUserPub <- ToUserPub
 		}
 	}()
-	go func(){
+	go func() {
 		for {
 			ToUser := <-UserIPName
 			var ToUserIP string
@@ -154,77 +115,121 @@ func ClientInit(){
 			UserIPPort <- ToUserIP
 		}
 	}()
+	go func() {
+		for {
+			<-cui.GetFriend
+			var FriendList_raw string
+			sess.Call(
+				"/srv/front/push_friend",
+				GenArg(CurUser, Token),
+				&FriendList_raw,
+			)
+			FriendList := strings.Split(FriendList_raw, ",")
+			FriendList = append(FriendList, "Global")
+			cui.CurFriendList <- FriendList
+		}
+	}()
+	go func() {
+		for {
+			Loginuser := <-cui.LoginUser
+			Loginpass := <-cui.LoginPass
+			cui.LoginStatus <- Login(Loginuser, Loginpass)
+		}
+	}()
+	go func() {
+		for {
+			Reguser := <-cui.RegUser
+			Regpass := <-cui.RegPass
+			cui.RegStatus <- Register(Reguser, Regpass)
+		}
+	}()
+	go func() {
+		for {
+			ChatUser := <-cui.ChatUser
+			Chatmsg := <-cui.Chatmsg
+			if ChatUser == "Global" {
+				command := strings.Split(Chatmsg[:len(Chatmsg)-1], " ")
+				var result string
+				select {
+				case _ = <-reqConfirm:
+					switch command[0] {
+					case "y":
+						addConfirm <- "y"
+					case "n":
+						addConfirm <- "n"
+					}
+				default:
+				}
+				switch command[0] {
+				case "add":
+					result = AddFriend(command[1])
+				case "del":
+					result = DelFriend(command[1])
 
+				}
+				cui.RecvUser <- "Global"
+				cui.RecvMsg <- result
+			} else {
+				Chat(ChatUser, Chatmsg)
+			}
+		}
+	}()
+	cui.InitCui()
 }
 
-func md5V2(str string) string {
-	data := []byte(str)
-	has := md5.Sum(data)
-	md5str := fmt.Sprintf("%x", has)
-	return md5str
-}
-
-func RandNumGen() (int){
-	n,err := rand.Int(rand.Reader,big.NewInt(math.MaxInt16))
-	if err != nil{
-		n,err = rand.Int(rand.Reader,big.NewInt(math.MaxInt16))
-	}
-	return int(n.Int64())
-}
-
-func Login(username string,password string){
+func Login(username string, password string) string {
 	var result string
 	ServerSession.Call("/srv/front/login",
-		GenArg(username,password),
+		GenArg(username, password),
 		&result,
 		tp.WithSetMeta("push_status", "yes"),
 	)
 	//tp.Printf("result: %s", result)
 	user1_token := result
-	_,err_UUID := uuid.Parse(user1_token)
-	if err_UUID != nil{
-		tp.Printf("result: %s", result)
-		return
+	_, err_UUID := uuid.Parse(user1_token)
+	if err_UUID != nil {
+		return result
 	}
 	Token = user1_token
 	CurUser = username
-	fmt.Println("Get Token OK")
-	privateFilename := "/tmp/PEMs/"+CurUser+"_private.pem"
-	myPrikey_raw,err := ioutil.ReadFile(privateFilename)
+
+	privateFilename := CurUser + "_private.pem"
+	myPrikey_raw, err := ioutil.ReadFile(privateFilename)
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 	myPrikey = string(myPrikey_raw)
+	return "ok"
 }
 
-func Register(username string,password string){
+func Register(username string, password string) string {
 	var result string
 	Privkey, PublicKey := RSA.GenerateKeyPair(2048)
 	PrikeyBytes := (RSA.PrivateKeyToBytes(Privkey))
 	PubkeyStr := string(RSA.PublicKeyToBytes(PublicKey))
-	err := ioutil.WriteFile("/tmp/PEMs/"+username+"_private.pem",PrikeyBytes,0644)
-	if err!= nil{
+	err := ioutil.WriteFile(username+"_private.pem", PrikeyBytes, 0644)
+	if err != nil {
 		panic(err)
 	}
 	ServerSession.Call("/srv/front/register",
-		GenArg(username,password,PubkeyStr),
+		GenArg(username, password, PubkeyStr),
 		&result,
 		tp.WithSetMeta("push_status", "yes"),
 	)
-	fmt.Println(result)
+	return result
 }
 
-func KeySAEnc(username string,Key int)(string){
-	KeySAUser<-username
+func KeySAEnc(username string, Key int) string {
+	KeySAUser <- username
 	ToUserPub := <-KeySAUserPub
 	publicKey := RSA.BytesToPublicKey([]byte(ToUserPub))
-	KeyEnc_raw := RSA.EncryptWithPublicKey([]byte("key"+strconv.Itoa(int(Key))),publicKey)
+	KeyEnc_raw := RSA.EncryptWithPublicKey([]byte("key"+strconv.Itoa(int(Key))), publicKey)
 	KeyEnc := make([]byte, hex.EncodedLen(len(KeyEnc_raw)))
 	hex.Encode(KeyEnc, KeyEnc_raw)
 	return string(KeyEnc)
 }
 
-func KeySADec(KeyEnc string)(int){
+func KeySADec(KeyEnc string) int {
 	KeyEnc_raw := make([]byte, hex.DecodedLen(len(KeyEnc)))
 	_, err := hex.Decode(KeyEnc_raw, []byte(KeyEnc))
 	if err != nil {
@@ -232,79 +237,82 @@ func KeySADec(KeyEnc string)(int){
 	}
 	privateKey := RSA.BytesToPrivateKey([]byte(myPrikey))
 
-	Key_raw := string(RSA.DecryptWithPrivateKey(KeyEnc_raw,privateKey))
-	if Key_raw[:3] == "key"{
-		key,err := strconv.Atoi(string(Key_raw)[3:])
+	Key_raw := string(RSA.DecryptWithPrivateKey(KeyEnc_raw, privateKey))
+	if Key_raw[:3] == "key" {
+		key, err := strconv.Atoi(string(Key_raw)[3:])
 		if err != nil {
 			log.Fatal(err)
 		}
 		return key
-	}else{
+	} else {
 		return 0
 	}
 }
 
-func Chat(to_name string,msg string){
-	if Session[to_name] == nil{
+func Chat(to_name string, msg string) {
+	if Session[to_name] == nil {
 		cli := tp.NewPeer(
 			tp.PeerConfig{},
 		)
-		fmt.Println(to_name)
+		//fmt.Println(to_name)
 		UserIPName <- to_name
-		toUserIPPort := <- UserIPPort
+		toUserIPPort := <-UserIPPort
 
-		TmpSession , Perr := cli.Dial(fmt.Sprintf("%s:7080",strings.Split(toUserIPPort,":")[0]))
-		if Perr != nil{
+		TmpSession, Perr := cli.Dial(fmt.Sprintf("%s:7080", strings.Split(toUserIPPort, ":")[0]))
+		if Perr != nil {
 			panic(Perr)
 		}
 		Session[to_name] = TmpSession
-		fmt.Println("Session INIT OK")
+		//fmt.Println("Session INIT OK")
 	}
-	fmt.Printf("Session to %s OK\n",to_name)
-	if SessionKey[to_name] == nil{
-		KeyA := RandNumGen()
-		KeyAEnc:=KeySAEnc(to_name,KeyA)
+	//fmt.Printf("Session to %s OK\n",to_name)
+	if SessionKey[to_name] == nil {
+		KeyA := RSA.RandNumGen()
+		KeyAEnc := KeySAEnc(to_name, KeyA)
 		var result string
 		Session[to_name].Call(
 			"/p2pcall/key_sa",
-			GenArg(CurUser,KeyAEnc),
+			GenArg(CurUser, KeyAEnc),
 			&result,
 		)
 		KeyB := KeySADec(result)
-		FinalRc4Key := strconv.Itoa(int(KeyA)*int(KeyB))
-		fmt.Printf("KeyA:%d,KeyB:%d,FinalKey:%s\n",KeyA,int(KeyB),md5V2(FinalRc4Key))
-		SessionKey[to_name],_ = rc4.NewCipher([]byte(md5V2(FinalRc4Key)))
+		FinalRc4Key := strconv.Itoa(int(KeyA) * int(KeyB))
+		//fmt.Printf("KeyA:%d,KeyB:%d,FinalKey:%s\n",KeyA,int(KeyB),RSA.Md5V2(FinalRc4Key))
+		SessionKey[to_name], _ = rc4.NewCipher([]byte(RSA.Md5V2(FinalRc4Key)))
 	}
-	fmt.Printf("SessionKey to %s OK\n",to_name)
+	//fmt.Printf("SessionKey to %s OK\n",to_name)
 	msgEncode := make([]byte, len(msg))
 	SessionKey[to_name].XORKeyStream(msgEncode, []byte(msg))
 	msgEncode_raw := make([]byte, hex.EncodedLen(len(msgEncode)))
 	hex.Encode(msgEncode_raw, msgEncode)
 	Session[to_name].Push(
 		"/p2push/chat",
-		GenArg(CurUser,string(msgEncode_raw)))
+		GenArg(CurUser, string(msgEncode_raw)))
 	return
 }
 
-func AddFriend(adduser string)(string){
+func AddFriend(adduser string) string {
 	var result string
 	ServerSession.Call("/srv/front/add_friend",
-		GenArg(CurUser,Token,adduser),
+		GenArg(CurUser, Token, adduser),
 		&result,
 		tp.WithSetMeta("push_status", "yes"),
 	)
-	fmt.Println(result)
+	if result == "ok" {
+		cui.GetFriend <- true
+	}
+	//fmt.Println(result)
 	return result
 }
 
-func DelFriend(deluser string)(string){
+func DelFriend(deluser string) string {
 	var result string
 	ServerSession.Call("/srv/front/del_friend",
-		GenArg(CurUser,Token,deluser),
+		GenArg(CurUser, Token, deluser),
 		&result,
 		tp.WithSetMeta("push_status", "yes"),
 	)
-	fmt.Println(result)
+	//fmt.Println(result)
 	return result
 }
 
@@ -331,53 +339,60 @@ func (p *push) ServerStatus(arg *string) *tp.Rerror {
 
 func (p *push) Online(arg_raw *string) *tp.Rerror {
 	onlineUser := *arg_raw
-	fmt.Printf("%s Online!\n",onlineUser)
+	cui.OnlineUser <- onlineUser
 	return nil
 }
 
-func (c *call) AddConfirm(arg_raw *string) (string,*tp.Rerror){
+func (c *call) AddConfirm(arg_raw *string) (string, *tp.Rerror) {
 	addWho := *arg_raw
-	fmt.Printf("%s add you,confirm?(y/n)",addWho)
+	cui.RecvUser <- "Global"
+	cui.RecvMsg <- fmt.Sprintf("%s add you,confirm?(y/n)", addWho)
+	reqConfirm <- true
 	var result string
-	fmt.Scanf("%s",&result)
-	if result == "y"{
-		return "ok",nil
-	}else{
-		return "deny",nil
+	result = <-addConfirm
+	if result == "y" {
+		go func() {
+			time.Sleep(time.Second * 3)
+			cui.GetFriend <- true
+		}()
+		return "ok", nil
+	} else {
+		return "deny", nil
 	}
 }
 
-
-func (c *p2pcall) KeySA(arg_raw *string) (string,*tp.Rerror) {
-	fmt.Print("Handle KeySA")
+func (c *p2pcall) KeySA(arg_raw *string) (string, *tp.Rerror) {
+	//fmt.Print("Handle KeySA")
 	arg := strings.Split(*arg_raw, ",")
 	username := arg[0]
 	KeyEnc := arg[1]
 	KeyA := KeySADec(KeyEnc)
 
-	KeyB := RandNumGen()
-	KeyBenc := KeySAEnc(username,KeyB)
-	FinalRc4Key := strconv.Itoa(KeyA*int(KeyB))
-	fmt.Printf("KeyA:%d,KeyB:%d,FinalKey:%s\n",KeyA,int(KeyB),md5V2(FinalRc4Key))
-	SessionKey[username],_ = rc4.NewCipher([]byte(md5V2(FinalRc4Key)))
-	return KeyBenc,nil
+	KeyB := RSA.RandNumGen()
+	KeyBenc := KeySAEnc(username, KeyB)
+	FinalRc4Key := strconv.Itoa(KeyA * int(KeyB))
+	//fmt.Printf("KeyA:%d,KeyB:%d,FinalKey:%s\n",KeyA,int(KeyB),RSA.Md5V2(FinalRc4Key))
+	SessionKey[username], _ = rc4.NewCipher([]byte(RSA.Md5V2(FinalRc4Key)))
+	return KeyBenc, nil
 }
 
-func (p *p2push) Chat(arg_raw *string) (*tp.Rerror){
-	arg := strings.Split(*arg_raw,",")
+func (p *p2push) Chat(arg_raw *string) *tp.Rerror {
+	arg := strings.Split(*arg_raw, ",")
 	username := arg[0]
 	msg := arg[1]
 	msg_raw := make([]byte, hex.DecodedLen(len(msg)))
 	_, err := hex.Decode(msg_raw, []byte(msg))
-	if err!=nil{
+	if err != nil {
 		panic(err)
 	}
-	if SessionKey[username] != nil{
+	if SessionKey[username] != nil {
 		msgDecode := make([]byte, len(msg_raw))
 		SessionKey[username].XORKeyStream(msgDecode, []byte(msg_raw))
-		fmt.Printf("%s: %s\n",username,msgDecode)
-	}else{
-		fmt.Println("Err in SessionKey")
+		//fmt.Printf("%s: %s\n",username,msgDecode)
+		cui.RecvUser <- username
+		cui.RecvMsg <- string(msgDecode)
+	} else {
+		//fmt.Println("Err in SessionKey")
 	}
 	return nil
 }
