@@ -73,13 +73,13 @@ func nextViewMsg(g *gocui.Gui, v *gocui.View) error {
 func LoginEnter(g *gocui.Gui, v *gocui.View) error {
 	vUsername, err := g.View("Username")
 
-	if err!=nil{
+	if err != nil {
 		panic(err)
 	}
 	username := strings.TrimSpace(vUsername.Buffer())
 	//fmt.Println("username: "+ username)
 	vPassword, err := g.View("Password")
-	if err!=nil{
+	if err != nil {
 		panic(err)
 	}
 	password := strings.TrimSpace(vPassword.Buffer())
@@ -87,73 +87,73 @@ func LoginEnter(g *gocui.Gui, v *gocui.View) error {
 	LoginPass <- password
 	//fmt.Println("password: "+password)
 	loginStatus := <-LoginStatus
-	if loginStatus == "ok"{
+	if loginStatus == "ok" {
 		CurUser = username
 		LoginOK(g)
-	}else{
-		fmt.Fprintln(v,loginStatus)
+	} else {
+		fmt.Fprintln(v, loginStatus)
 	}
 	return err
 }
 
-func updateMsg(recvuser string,g *gocui.Gui){
-	recvmsg := <- RecvMsg
+func updateMsg(recvuser string, g *gocui.Gui) {
+	recvmsg := <-RecvMsg
 	g.Update(func(g *gocui.Gui) error {
 		v, err := g.View("msgBox")
 		if err != nil {
 			panic(err)
 		}
 		Msgtime := time.Now().String()[:19]
-		fmt.Fprintf(v,"%s %s:\n   %s\n",recvuser,Msgtime,recvmsg)
+		fmt.Fprintf(v, "%s %s:\n   %s\n", recvuser, Msgtime, recvmsg)
 		return nil
 	})
 }
 
-func updateOnline(onlineuser string,g *gocui.Gui){
+func updateOnline(onlineuser string, g *gocui.Gui) {
 	g.Update(func(g *gocui.Gui) error {
 		v, err := g.View("FriendList")
 		if err != nil {
 			panic(err)
 		}
-		friendlist := strings.Split(v.Buffer(),"\n")
-		newFriendlist := []string{"\u001b[32m"+onlineuser+"\u001b[0m"}
-		for _,n :=  range(friendlist){
-			if n!= onlineuser{
-				newFriendlist = append(newFriendlist,n)
+		friendlist := strings.Split(v.Buffer(), "\n")
+		newFriendlist := []string{"\u001b[32m" + onlineuser + "\u001b[0m"}
+		for _, n := range friendlist {
+			if n != onlineuser {
+				newFriendlist = append(newFriendlist, n)
 			}
 		}
 		return nil
 	})
 }
 
-func updateFriend(friendList []string,g *gocui.Gui){
+func updateFriend(friendList []string, g *gocui.Gui) {
 	g.Update(func(g *gocui.Gui) error {
 		v, err := g.View("FriendList")
 		if err != nil {
 			panic(err)
 		}
 		v.Clear()
-		for _,singleName := range(friendList){
-			fmt.Fprintln(v,singleName)
+		for _, singleName := range friendList {
+			fmt.Fprintln(v, singleName)
 		}
 		return nil
 	})
 }
 
-func msgUpdate(g *gocui.Gui){
-	for{
-		select{
-				case recvuser := <- RecvUser:
-					go updateMsg(recvuser,g)
-				case onlineuser := <-OnlineUser:
-					go updateOnline(onlineuser,g)
-				case friendList := <-CurFriendList:
-					go updateFriend(friendList,g)
+func msgUpdate(g *gocui.Gui) {
+	for {
+		select {
+		case recvuser := <-RecvUser:
+			go updateMsg(recvuser, g)
+		case onlineuser := <-OnlineUser:
+			go updateOnline(onlineuser, g)
+		case friendList := <-CurFriendList:
+			go updateFriend(friendList, g)
 		}
 	}
 }
 
-func LoginOK(g *gocui.Gui) error{
+func LoginOK(g *gocui.Gui) error {
 
 	maxX, maxY := g.Size()
 	if v, err := g.SetView("FriendList", -1, -1, 18, maxY); err != nil {
@@ -167,8 +167,8 @@ func LoginOK(g *gocui.Gui) error{
 
 		GetFriend <- true
 		friendList := <-CurFriendList
-		for _,singleName := range(friendList){
-			fmt.Fprintln(v,singleName)
+		for _, singleName := range friendList {
+			fmt.Fprintln(v, singleName)
 		}
 	}
 	if v, err := g.SetView("msgBox", 19, -1, maxX, maxY-10); err != nil {
@@ -193,24 +193,22 @@ func LoginOK(g *gocui.Gui) error{
 	return nil
 }
 
-
-
 func RegEnter(g *gocui.Gui, v *gocui.View) error {
 	vUsername, err := g.View("UsernameR")
 	vPassword, err := g.View("PasswordR")
-	vConfirm,err := g.View("ConfirmR")
-	if err!=nil{
+	vConfirm, err := g.View("ConfirmR")
+	if err != nil {
 		panic(err)
 	}
 	username := strings.TrimSpace(vUsername.Buffer())
 	password := strings.TrimSpace(vPassword.Buffer())
 	confirm := strings.TrimSpace(vConfirm.Buffer())
-	if password == confirm{
+	if password == confirm {
 		RegUser <- username
 		RegPass <- password
 	}
-	if <-RegStatus == "ok"{
-		err = ReturnMain(g,v)
+	if <-RegStatus == "ok" {
+		err = ReturnMain(g, v)
 	}
 
 	return err
@@ -229,11 +227,11 @@ func ReturnMain(g *gocui.Gui, v *gocui.View) error {
 func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		cx, cy := v.Cursor()
-		if l,err := v.Line(cy+1); err == nil{
-			if l==""{
+		if l, err := v.Line(cy + 1); err == nil {
+			if l == "" {
 				return err
 			}
-		}else{
+		} else {
 			return err
 		}
 		if err := v.SetCursor(cx, cy+1); err != nil {
@@ -267,8 +265,8 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	if l, err = v.Line(cy); err != nil {
 		l = ""
 	}
-	_,err = g.SetCurrentView("textMsg")
-	if err!= nil{
+	_, err = g.SetCurrentView("textMsg")
+	if err != nil {
 		panic(err)
 	}
 	Curfriend = l
@@ -281,9 +279,12 @@ func sendMsg(g *gocui.Gui, v *gocui.View) error {
 	msg := v.Buffer()
 	ChatUser <- Curfriend
 	Chatmsg <- msg
-	vMsgBox,err := g.View("msgBox")
+	vMsgBox, err := g.View("msgBox")
 	Msgtime := time.Now().String()[:19]
-	fmt.Fprintf(vMsgBox,"%s %s:\n   %s\n",CurUser,Msgtime,msg)
+	fmt.Fprintf(vMsgBox, "%s %s:\n   %s\n", CurUser, Msgtime, msg)
+	v.Clear()
+	v.SetCursor(0, 0)
+	v.SetOrigin(0, 0)
 	return err
 }
 
@@ -357,7 +358,6 @@ func keybindings(g *gocui.Gui) error {
 	return nil
 }
 
-
 func layout(g *gocui.Gui) error {
 	//_, maxY := g.Size()
 	if v, err := g.SetView("Banner", 5, 2, 115, 8); err != nil {
@@ -367,21 +367,21 @@ func layout(g *gocui.Gui) error {
 		v.Editable = false
 		v.SelBgColor = gocui.ColorGreen
 		v.SelFgColor = gocui.ColorBlack
-		fmt.Fprintln(v,"                    __  __     ____         _       __           __    __   ________          __ ")
-		fmt.Fprintln(v,"                   / / / /__  / / /___     | |     / /___  _____/ /___/ /  / ____/ /_  ____ _/ /_")
-		fmt.Fprintln(v,"                  / /_/ / _ \\/ / / __ \\    | | /| / / __ \\/ ___/ / __  /  / /   / __ \\/ __ `/ __/")
-		fmt.Fprintln(v,"                 / __  /  __/ / / /_/ /    | |/ |/ / /_/ / /  / / /_/ /  / /___/ / / / /_/ / /_  ")
-		fmt.Fprintln(v,"                /_/ /_/\\___/_/_/\\____/     |__/|__/\\____/_/  /_/\\__,_/   \\____/_/ /_/\\__,_/\\__/  ")
+		fmt.Fprintln(v, "                    __  __     ____         _       __           __    __   ________          __ ")
+		fmt.Fprintln(v, "                   / / / /__  / / /___     | |     / /___  _____/ /___/ /  / ____/ /_  ____ _/ /_")
+		fmt.Fprintln(v, "                  / /_/ / _ \\/ / / __ \\    | | /| / / __ \\/ ___/ / __  /  / /   / __ \\/ __ `/ __/")
+		fmt.Fprintln(v, "                 / __  /  __/ / / /_/ /    | |/ |/ / /_/ / /  / / /_/ /  / /___/ / / / /_/ / /_  ")
+		fmt.Fprintln(v, "                /_/ /_/\\___/_/_/\\____/     |__/|__/\\____/_/  /_/\\__,_/   \\____/_/ /_/\\__,_/\\__/  ")
 	}
 	if v, err := g.SetView("main", 20, 12, 100, 30); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		fmt.Fprintln(v,"\n\n")
+		fmt.Fprintln(v, "\n\n")
 		fmt.Fprintln(v, "                                1.Login")
-		fmt.Fprintln(v,"\n\n\n")
+		fmt.Fprintln(v, "\n\n\n")
 		fmt.Fprintln(v, "                                2.Register")
-		fmt.Fprintln(v,"\n\n\n")
+		fmt.Fprintln(v, "\n\n\n")
 		fmt.Fprintln(v, "                                3.Exit")
 		if _, err := g.SetCurrentView("main"); err != nil {
 			return err
@@ -396,8 +396,6 @@ func setCurrentViewOnTop(g *gocui.Gui, name string) (*gocui.View, error) {
 	}
 	return g.SetViewOnTop(name)
 }
-
-
 
 func LoginView(g *gocui.Gui, v *gocui.View) error {
 	//maxX, maxY := g.Size()
@@ -427,7 +425,7 @@ func LoginView(g *gocui.Gui, v *gocui.View) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		fmt.Fprintln(v,"OK(ENTER)")
+		fmt.Fprintln(v, "OK(ENTER)")
 
 		//if _, err = setCurrentViewOnTop(g, "Password"); err != nil {
 		//	return err
@@ -437,7 +435,7 @@ func LoginView(g *gocui.Gui, v *gocui.View) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		fmt.Fprintln(v,"Cancel(ESC)")
+		fmt.Fprintln(v, "Cancel(ESC)")
 
 		//if _, err = setCurrentViewOnTop(g, "Password"); err != nil {
 		//	return err
@@ -447,20 +445,23 @@ func LoginView(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func RegView(g *gocui.Gui, v *gocui.View) error{
-	maxX, maxY := g.Size()
-	if v, err := g.SetView("UsernameR", 30, maxY/2-1, maxX-50, maxY/2+1); err != nil {
+func RegView(g *gocui.Gui, v *gocui.View) error {
+	//maxX, maxY := g.Size()
+	if v, err := g.SetView("UsernameR", 30, 15, 70, 17); err != nil {
 		if err != gocui.ErrUnknownView {
+			panic(err)
 			return err
 		}
 		v.Title = "Username"
 		v.Editable = true
 		if _, err = g.SetCurrentView("UsernameR"); err != nil {
+			panic(err)
 			return err
 		}
 	}
-	if v, err := g.SetView("PasswordR", 30, maxY/2+2, maxX-50, maxY/2+4); err != nil {
+	if v, err := g.SetView("PasswordR", 30, 19, 70, 21); err != nil {
 		if err != gocui.ErrUnknownView {
+			panic(err)
 			return err
 		}
 		v.Title = "Password"
@@ -470,8 +471,9 @@ func RegView(g *gocui.Gui, v *gocui.View) error{
 		//	return err
 		//}
 	}
-	if v, err := g.SetView("ConfirmR", 30, maxY/2+5, maxX-50, maxY/2+7); err != nil {
+	if v, err := g.SetView("ConfirmR", 30, 23, 70, 25); err != nil {
 		if err != gocui.ErrUnknownView {
+			panic(err)
 			return err
 		}
 		v.Title = "Confirm"
@@ -481,21 +483,23 @@ func RegView(g *gocui.Gui, v *gocui.View) error{
 		//	return err
 		//}
 	}
-	if v, err := g.SetView("OKR", 40, maxY/2+8, maxX-80, maxY/2+10); err != nil {
+	if v, err := g.SetView("OKR", 40, 27, 50, 29); err != nil {
 		if err != gocui.ErrUnknownView {
+			panic(err)
 			return err
 		}
-		fmt.Fprintln(v,"OK(ENTER)")
+		fmt.Fprintln(v, "OK(ENTER)")
 
 		//if _, err = setCurrentViewOnTop(g, "Password"); err != nil {
 		//	return err
 		//}
 	}
-	if v, err := g.SetView("CancelR", 53, maxY/2+8, maxX-65, maxY/2+10); err != nil {
+	if v, err := g.SetView("CancelR", 53, 27, 65, 29); err != nil {
 		if err != gocui.ErrUnknownView {
+			panic(err)
 			return err
 		}
-		fmt.Fprintln(v,"Cancel(ESC)")
+		fmt.Fprintln(v, "Cancel(ESC)")
 
 		//if _, err = setCurrentViewOnTop(g, "Password"); err != nil {
 		//	return err
