@@ -24,6 +24,9 @@ var addFriendName = make(chan string)
 var addFriendFrom = make(chan string)
 var addFriendStatus = make(chan string)
 
+var IFonlineUser = make(chan string)
+var IFonlineStatus = make(chan string)
+
 func main() {
 	database.Init_database()
 	defer tp.FlushLogger()
@@ -61,6 +64,22 @@ func main() {
 				}
 
 			}
+			offlineMsgList, err := database.GetOfflineMsg(userchat.username)
+			if err == "ok" {
+				sess_self, ok := srv.GetSession(userchat.username)
+				if ok {
+					for _, msg_raw := range offlineMsgList {
+						msgBlock := strings.Split(msg_raw, "#")
+						fromUser := msgBlock[0]
+						msgRecv := msgBlock[1]
+						sess_self.Push(
+							"/cli/push/push_offline",
+							strings.Join([]string{fromUser, msgRecv}, ","),
+						)
+					}
+
+				}
+			}
 
 		}
 	}()
@@ -84,6 +103,18 @@ func main() {
 				addFriendStatus <- "offline"
 			}
 		}
+	}()
+	go func() {
+		for {
+			onlineUser := <-IFonlineUser
+			_, ok := srv.GetSession(onlineUser)
+			if ok {
+				IFonlineStatus <- "ok"
+			} else {
+				IFonlineStatus <- "offline"
+			}
+		}
+
 	}()
 	srv.ListenAndServe()
 }
@@ -213,9 +244,14 @@ func (m *Front) PushIP(arg_raw *string) (string, *tp.Rerror) {
 	arg := strings.Split(*arg_raw, ",")
 	username := arg[0]
 	token := arg[1]
+	toUser := arg[2]
+	IFonlineUser <- toUser
+	onlineStatus := <-IFonlineStatus
 	real_token, _ := database.GetToken(username)
 	if real_token == token {
-		toUser := arg[2]
+		if onlineStatus == "offline" {
+			return "offline", nil
+		}
 		IP, _ := database.GetIP(toUser)
 		return IP, nil
 	}
@@ -231,6 +267,20 @@ func (m *Front) PushFriend(arg_raw *string) (string, *tp.Rerror) {
 		friendList, _ := database.GetFriend(username)
 		friendList_raw := strings.Join(friendList, ",")
 		return friendList_raw, nil
+	}
+	return "Wrong Token", nil
+}
+
+func (m *Front) RecvOfflineMsg(arg_raw *string) (string, *tp.Rerror) {
+	arg := strings.Split(*arg_raw, ",")
+	username := arg[0]
+	token := arg[1]
+	real_token, _ := database.GetToken(username)
+	if real_token == token {
+		toUser := arg[2]
+		toMsg := arg[3]
+		err := database.PushOfflineMsg(username, toUser, toMsg)
+		return err, nil
 	}
 	return "Wrong Token", nil
 }

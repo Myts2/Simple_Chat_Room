@@ -250,21 +250,33 @@ func KeySADec(KeyEnc string) int {
 }
 
 func Chat(to_name string, msg string) {
-	if Session[to_name] == nil {
-		cli := tp.NewPeer(
-			tp.PeerConfig{},
-		)
-		//fmt.Println(to_name)
-		UserIPName <- to_name
-		toUserIPPort := <-UserIPPort
 
-		TmpSession, Perr := cli.Dial(fmt.Sprintf("%s:7080", strings.Split(toUserIPPort, ":")[0]))
-		if Perr != nil {
-			panic(Perr)
-		}
-		Session[to_name] = TmpSession
-		//fmt.Println("Session INIT OK")
+	cli := tp.NewPeer(
+		tp.PeerConfig{},
+	)
+	//fmt.Println(to_name)
+	UserIPName <- to_name
+	toUserIPPort := <-UserIPPort
+	if toUserIPPort == "offline" {
+		var result string
+		ServerSession.Call(
+			"/srv/front/recv_offline_msg",
+			GenArg(CurUser, Token, to_name, msg),
+			&result,
+		)
+		cui.RecvUser <- to_name
+		cui.RecvMsg <- "(Server Recv Offline msg)"
+
+		SessionKey[to_name] = nil
+		return
 	}
+	TmpSession, Perr := cli.Dial(fmt.Sprintf("%s:7080", strings.Split(toUserIPPort, ":")[0]))
+	if Perr != nil {
+		panic(Perr)
+	}
+	Session[to_name] = TmpSession
+	//fmt.Println("Session INIT OK")
+
 	//fmt.Printf("Session to %s OK\n",to_name)
 	if SessionKey[to_name] == nil {
 		KeyA := RSA.RandNumGen()
@@ -340,6 +352,15 @@ func (p *push) ServerStatus(arg *string) *tp.Rerror {
 func (p *push) Online(arg_raw *string) *tp.Rerror {
 	onlineUser := *arg_raw
 	cui.OnlineUser <- onlineUser
+	return nil
+}
+
+func (p *push) PushOffline(arg_raw *string) *tp.Rerror {
+	arg := strings.Split(*arg_raw, ",")
+	fromUser := arg[0]
+	msg := arg[1]
+	cui.RecvUser <- fromUser
+	cui.RecvMsg <- msg
 	return nil
 }
 

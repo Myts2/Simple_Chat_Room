@@ -14,6 +14,7 @@ type User struct {
 	Friend_list string
 	Token       string
 	Ip          string
+	Msg         string
 }
 
 func Init_database() {
@@ -25,7 +26,6 @@ func Init_database() {
 
 	//RegisterModel 也可以同时注册多个 model
 	orm.RegisterModel(new(User))
-
 	// 创建 table
 	orm.RunSyncdb("default", false, true)
 }
@@ -163,4 +163,44 @@ func DelFriend(username string, friend string) error {
 		return err
 	}
 	return err
+}
+
+func PushOfflineMsg(fromUser string, toUser string, toMsg string) string {
+	o := orm.NewOrm()
+
+	var tmp_user User
+	err := o.QueryTable(User{}).Filter("Username", toUser).One(&tmp_user)
+	if err == nil {
+		var MsgList []string
+		json.Unmarshal([]byte(tmp_user.Msg), &MsgList)
+		MsgList = append(MsgList, fromUser+"#"+toMsg)
+		tmpMsgList, _ := json.Marshal(MsgList)
+		tmp_user.Msg = string(tmpMsgList)
+		_, err := o.Update(&tmp_user)
+		if err == nil {
+			return "ok"
+		}
+		return err.Error()
+	}
+	return err.Error()
+}
+
+func GetOfflineMsg(fromUser string) ([]string, string) {
+	o := orm.NewOrm()
+
+	var tmp_user User
+	err := o.QueryTable(User{}).Filter("Username", fromUser).One(&tmp_user)
+	if err == nil {
+		var MsgList []string
+		json.Unmarshal([]byte(tmp_user.Msg), &MsgList)
+
+		tmpMsgList, _ := json.Marshal("")
+		tmp_user.Msg = string(tmpMsgList)
+		_, err := o.Update(&tmp_user)
+		if err == nil {
+			return MsgList, "ok"
+		}
+		return nil, err.Error()
+	}
+	return nil, err.Error()
 }
