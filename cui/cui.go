@@ -70,6 +70,19 @@ func nextViewMsg(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func nextViewBox(g *gocui.Gui, v *gocui.View) error {
+	switch v.Name() {
+	case "textMsg":
+		_, err := g.SetCurrentView("msgBox")
+		return err
+	case "msgBox":
+		_, err := g.SetCurrentView("textMsg")
+		return err
+
+	}
+	return nil
+}
+
 func LoginEnter(g *gocui.Gui, v *gocui.View) error {
 	vUsername, err := g.View("Username")
 
@@ -280,6 +293,57 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func cursorBoxDown(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		cx, cy := v.Cursor()
+		if err := v.SetCursor(cx, cy+1); err != nil {
+			ox, oy := v.Origin()
+			if err := v.SetOrigin(ox, oy+1); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func cursorBoxUp(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		ox, oy := v.Origin()
+		cx, cy := v.Cursor()
+		if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
+			if err := v.SetOrigin(ox, oy-1); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func cursorPageDown(g *gocui.Gui, v *gocui.View) error {
+	vmsgBox, _ := g.View("msgBox")
+	if vmsgBox != nil {
+		ox, oy := vmsgBox.Origin()
+		err := vmsgBox.SetOrigin(ox, oy+3)
+		return err
+	}
+	return nil
+}
+
+func cursorPageUp(g *gocui.Gui, v *gocui.View) error {
+	vmsgBox, _ := g.View("msgBox")
+	if vmsgBox != nil {
+		ox, oy := vmsgBox.Origin()
+		if oy < 3 {
+			err := vmsgBox.SetOrigin(ox, 0)
+			return err
+		} else {
+			err := vmsgBox.SetOrigin(ox, oy-3)
+			return err
+		}
+	}
+	return nil
+}
+
 func getLine(g *gocui.Gui, v *gocui.View) error {
 	var l string
 	var err error
@@ -386,6 +450,24 @@ func keybindings(g *gocui.Gui) error {
 		return err
 	}
 	if err := g.SetKeybinding("textMsg", gocui.KeyEnter, gocui.ModNone, sendMsg); err != nil {
+		return err
+	}
+	//if err := g.SetKeybinding("textMsg", gocui.KeyCtrlW, gocui.ModNone, nextViewBox); err != nil {
+	//	return err
+	//}
+	//if err := g.SetKeybinding("msgBox", gocui.KeyCtrlW, gocui.ModNone, nextViewBox); err != nil {
+	//	return err
+	//}
+	//if err := g.SetKeybinding("msgBox", gocui.KeyArrowUp, gocui.ModNone, cursorBoxUp); err != nil {
+	//	return err
+	//}
+	//if err := g.SetKeybinding("msgBox", gocui.KeyArrowDown, gocui.ModNone, cursorBoxDown); err != nil {
+	//	return err
+	//}
+	if err := g.SetKeybinding("textMsg", gocui.KeyPgup, gocui.ModNone, cursorPageUp); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("textMsg", gocui.KeyPgdn, gocui.ModNone, cursorPageDown); err != nil {
 		return err
 	}
 	return nil
