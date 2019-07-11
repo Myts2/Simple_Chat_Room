@@ -2,7 +2,7 @@ language: go
 
 go: 1.11
 
-install: go build -o server server_teleport.go && go build -o client client/client.go"
+install: go build -o server server_teleport.go && go build -o client client/client.go
 
 before_deploy:
   - PLATFORMS=(darwin/386 darwin/amd64 freebsd/386 freebsd/amd64 freebsd/arm linux/386 linux/amd64 linux/arm windows/386 windows/amd64)
