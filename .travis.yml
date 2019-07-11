@@ -2,7 +2,7 @@ language: go
 
 go: 1.x
 
-install: go get -t -v ./... && go build -o server server_teleport.go && go build -o client client/client.go
+install: go get -t -v ./... && go build -o server_chat server_teleport.go && go build -o client_chat client/client.go
 
 before_deploy:
   - PLATFORMS=(darwin/386 darwin/amd64 freebsd/386 freebsd/amd64 freebsd/arm linux/386 linux/amd64 linux/arm windows/386 windows/amd64)
@@ -14,9 +14,9 @@ before_deploy:
       GOOS=${PLATFORM%/*}
       GOARCH=${PLATFORM#*/}
       if [ "$GOOS" = "windows" ]; then
-        build_cmd="go get -t -v ./... && GOOS=$GOOS GOARCH=$GOARCH go build -o server server_teleport.go && GOOS=$GOOS GOARCH=$GOARCH go build -o client client/client.go"
+        build_cmd="go get -t -v ./... && GOOS=$GOOS GOARCH=$GOARCH go build -o server_chat server_teleport.go && GOOS=$GOOS GOARCH=$GOARCH go build -o client_chat client/client.go"
       else
-        build_cmd="go get -t -v ./... && CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build go build -o server server_teleport.go && GOOS=$GOOS GOARCH=$GOARCH go build -o client client/client.go"
+        build_cmd="go get -t -v ./... && CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build go build -o server_chat server_teleport.go && GOOS=$GOOS GOARCH=$GOARCH go build -o client_chat client/client.go"
       fi
       if ! eval $build_cmd; then
         echo "Failed building sample for $PLATFORM" && return 1
