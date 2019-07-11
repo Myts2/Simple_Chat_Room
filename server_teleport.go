@@ -77,7 +77,10 @@ func main() {
 			}
 			offlineMsgList, err := database.GetOfflineMsg(userchat.username)
 			if err == "ok" {
-				database.DelOfflineMsg(userchat.username)
+				err = database.DelOfflineMsg(userchat.username)
+				if err != "ok" {
+					tp.Panicf(err)
+				}
 				sess_self, ok := srv.GetSession(userchat.username)
 				if ok {
 					for _, msg_raw := range offlineMsgList {
@@ -169,7 +172,10 @@ func (m *Front) Login(arg_raw *string) (string, *tp.Rerror) {
 	userchat.username = username
 	userchat.token = token
 	login_msg <- *userchat
-	database.PushToken(username, token)
+	err = database.PushToken(username, token)
+	if err != nil {
+		panic(err)
+	}
 	m.Session().SetID(username)
 	database.PushIP(username, m.Session().RemoteAddr().String())
 	return token, nil

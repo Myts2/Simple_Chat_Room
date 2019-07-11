@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql" // 导入数据库驱动
+	"sync"
 )
 
 type User struct {
@@ -18,9 +19,13 @@ type User struct {
 	Msg         string
 }
 
+var mutex sync.Mutex
+
 func Init_database(mysqlUser string, mysqlPass string, mysqlHost string, mysqlPort string, mysqlTable string) {
+	mutex.Lock()
 	// 设置默认数据库
 	orm.RegisterDriver("mysql", orm.DRMySQL)
+	//"root:qq784400047@/GolangChatRoom?charset=utf8"
 	dataSource := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8", mysqlUser, mysqlPass, mysqlHost, mysqlPort, mysqlTable)
 	orm.RegisterDataBase("default", "mysql", dataSource, 30)
 
@@ -30,25 +35,31 @@ func Init_database(mysqlUser string, mysqlPass string, mysqlHost string, mysqlPo
 	orm.RegisterModel(new(User))
 	// 创建 table
 	orm.RunSyncdb("default", false, true)
+	mutex.Unlock()
 }
 
 func GetCert(username string) (string, error) {
+	mutex.Lock()
 	o := orm.NewOrm()
 	var tmp_user User
 	qs := o.QueryTable(User{})
 	err := qs.Filter("Username", username).One(&tmp_user)
+	mutex.Unlock()
 	return tmp_user.Pub_cert, err
 }
 
 func GetPass(username string) (string, error) {
+	mutex.Lock()
 	o := orm.NewOrm()
 	var tmp_user User
 	qs := o.QueryTable(User{})
 	err := qs.Filter("Username", username).One(&tmp_user)
+	mutex.Unlock()
 	return tmp_user.Pass_md5, err
 }
 
 func Register(username string, pass_md5 string, cert string) string {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var try_username_exist User
@@ -57,15 +68,19 @@ func Register(username string, pass_md5 string, cert string) string {
 
 		_, err := o.Insert(&User{Username: username, Pass_md5: pass_md5, Pub_cert: cert})
 		if err != nil {
+			mutex.Unlock()
 			return err.Error()
 		} else {
+			mutex.Unlock()
 			return "ok"
 		}
 	}
+	mutex.Unlock()
 	return "User exist"
 }
 
 func PushToken(username string, token string) error {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -74,12 +89,15 @@ func PushToken(username string, token string) error {
 		tmp_user.Token = token
 
 		_, err := o.Update(&tmp_user)
+		mutex.Unlock()
 		return err
 	}
+	mutex.Unlock()
 	return err
 }
 
 func PushIP(username string, IP string) error {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -88,23 +106,29 @@ func PushIP(username string, IP string) error {
 		tmp_user.Ip = IP
 
 		_, err := o.Update(&tmp_user)
+		mutex.Unlock()
 		return err
 	}
+	mutex.Unlock()
 	return err
 }
 
 func GetToken(username string) (string, error) {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
 	err := o.QueryTable(User{}).Filter("Username", username).One(&tmp_user)
 	if err == nil {
+		mutex.Unlock()
 		return tmp_user.Token, err
 	}
+	mutex.Unlock()
 	return "", err
 }
 
 func GetFriend(username string) ([]string, error) {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -112,23 +136,29 @@ func GetFriend(username string) ([]string, error) {
 	if err == nil {
 		var friend_list []string
 		json.Unmarshal([]byte(tmp_user.Friend_list), &friend_list)
+		mutex.Unlock()
 		return friend_list, err
 	}
+	mutex.Unlock()
 	return nil, err
 }
 
 func GetIP(username string) (string, error) {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
 	err := o.QueryTable(User{}).Filter("Username", username).One(&tmp_user)
 	if err == nil {
+		mutex.Unlock()
 		return tmp_user.Ip, err
 	}
+	mutex.Unlock()
 	return "", err
 }
 
 func PushFriend(username string, friend string) error {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -140,12 +170,15 @@ func PushFriend(username string, friend string) error {
 		fin_friend_list, _ := json.Marshal(friend_list)
 		tmp_user.Friend_list = string(fin_friend_list)
 		_, err := o.Update(&tmp_user)
+		mutex.Unlock()
 		return err
 	}
+	mutex.Unlock()
 	return err
 }
 
 func DelFriend(username string, friend string) error {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -162,12 +195,15 @@ func DelFriend(username string, friend string) error {
 		fin_friend_list, _ := json.Marshal(new_friend_list)
 		tmp_user.Friend_list = string(fin_friend_list)
 		_, err := o.Update(&tmp_user)
+		mutex.Unlock()
 		return err
 	}
+	mutex.Unlock()
 	return err
 }
 
 func PushOfflineMsg(fromUser string, toUser string, toMsg string) string {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -180,14 +216,18 @@ func PushOfflineMsg(fromUser string, toUser string, toMsg string) string {
 		tmp_user.Msg = string(tmpMsgList)
 		_, err := o.Update(&tmp_user)
 		if err == nil {
+			mutex.Unlock()
 			return "ok"
 		}
+		mutex.Unlock()
 		return err.Error()
 	}
+	mutex.Unlock()
 	return err.Error()
 }
 
 func GetOfflineMsg(fromUser string) ([]string, string) {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -199,14 +239,18 @@ func GetOfflineMsg(fromUser string) ([]string, string) {
 		tmp_user.Msg = ""
 		_, err := o.Update(&tmp_user)
 		if err == nil {
+			mutex.Unlock()
 			return MsgList, "ok"
 		}
+		mutex.Unlock()
 		return nil, err.Error()
 	}
+	mutex.Unlock()
 	return nil, err.Error()
 }
 
 func DelOfflineMsg(fromUser string) string {
+	mutex.Lock()
 	o := orm.NewOrm()
 
 	var tmp_user User
@@ -215,10 +259,13 @@ func DelOfflineMsg(fromUser string) string {
 		tmp_user.Msg = ""
 		_, err := o.Update(&tmp_user)
 		if err == nil {
+			mutex.Unlock()
 			return "ok"
 		}
+		mutex.Unlock()
 		return err.Error()
 	}
+	mutex.Unlock()
 	return err.Error()
 
 }
