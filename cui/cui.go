@@ -108,16 +108,23 @@ func updateMsg(recvuser string, g *gocui.Gui) {
 		for _, _ = range v.BufferLines() {
 			cursorDown(g, v)
 		}
+		cursorDown_raw(g, v)
+		for _, _ = range v.BufferLines() {
+			cursorDown(g, v)
+		}
 		return nil
 	})
 }
 
 func updateOnline(onlineuser string, g *gocui.Gui) {
 	g.Update(func(g *gocui.Gui) error {
-		v, err := g.View("FriendList")
+		v, err := g.View("msgBox")
 		if err != nil {
 			panic(err)
 		}
+		Msgtime := time.Now().String()[:19]
+		msg := onlineuser + " Online!"
+		fmt.Fprintf(v, "%s %s:\n   %s\n", "Global", Msgtime, msg)
 		friendlist := strings.Split(v.Buffer(), "\n")
 		newFriendlist := []string{"\u001b[32m" + onlineuser + "\u001b[0m"}
 		for _, n := range friendlist {
@@ -227,6 +234,19 @@ func ReturnMain(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func cursorDown_raw(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		cx, cy := v.Cursor()
+		if err := v.SetCursor(cx, cy+1); err != nil {
+			ox, oy := v.Origin()
+			if err := v.SetOrigin(ox, oy+1); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		cx, cy := v.Cursor()
@@ -288,7 +308,13 @@ func sendMsg(g *gocui.Gui, v *gocui.View) error {
 	vMsgBox, err := g.View("msgBox")
 	Msgtime := time.Now().String()[:19]
 	fmt.Fprintf(vMsgBox, "%s %s:\n   %s\n", CurUser, Msgtime, msg)
-	vMsgBox.MoveCursor(0, len(v.BufferLines()), false)
+	for _, _ = range vMsgBox.BufferLines() {
+		cursorDown(g, vMsgBox)
+	}
+	cursorDown_raw(g, vMsgBox)
+	for _, _ = range vMsgBox.BufferLines() {
+		cursorDown(g, vMsgBox)
+	}
 	v.Clear()
 	v.SetCursor(0, 0)
 	v.SetOrigin(0, 0)

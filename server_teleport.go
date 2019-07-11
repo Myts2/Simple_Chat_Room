@@ -5,6 +5,8 @@ import (
 	"github.com/Myts2/Simple_Chat_Room/database"
 	"github.com/google/uuid"
 	"strings"
+	"time"
+
 	//micro "github.com/xiaoenai/tp-micro"
 	"github.com/henrylee2cn/teleport"
 )
@@ -43,6 +45,19 @@ func main() {
 						"/cli/push/online",
 						userchat.username,
 					)
+					go func() {
+						time.Sleep(time.Second / 2)
+						sess_self, ok := srv.GetSession(userchat.username)
+						if ok {
+							sess_self.Push(
+								"/cli/push/online",
+								single_user_ID,
+							)
+						} else {
+							tp.Printf("Not OK ONline")
+						}
+					}()
+
 				}
 
 			}
