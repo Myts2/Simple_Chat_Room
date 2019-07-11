@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/Myts2/Simple_Chat_Room/database"
 	"github.com/google/uuid"
@@ -28,7 +29,17 @@ var IFonlineUser = make(chan string)
 var IFonlineStatus = make(chan string)
 
 func main() {
-	database.Init_database()
+	mysqlUser := flag.String("u", "", "mysql username")
+	mysqlPass := flag.String("p", "", "mysql password")
+	mysqlHost := flag.String("h", "127.0.0.1", "mysql host(default 127.0.0.1)")
+	mysqlPort := flag.String("mp", "3306", "mysql port(default 3306)")
+	mysqlTable := flag.String("t", "", "mysql table")
+	flag.Parse()
+	if *mysqlUser == "" {
+		flag.Usage()
+		return
+	}
+	database.Init_database(*mysqlUser, *mysqlPass, *mysqlHost, *mysqlPort, *mysqlTable)
 	defer tp.FlushLogger()
 	srv := tp.NewPeer(tp.PeerConfig{
 		CountTime:   true,

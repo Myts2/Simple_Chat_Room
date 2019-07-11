@@ -2,6 +2,7 @@ package database
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql" // 导入数据库驱动
 )
@@ -17,10 +18,11 @@ type User struct {
 	Msg         string
 }
 
-func Init_database() {
+func Init_database(mysqlUser string, mysqlPass string, mysqlHost string, mysqlPort string, mysqlTable string) {
 	// 设置默认数据库
 	orm.RegisterDriver("mysql", orm.DRMySQL)
-	orm.RegisterDataBase("default", "mysql", "root:qq784400047@/GolangChatRoom?charset=utf8", 30)
+	dataSource := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8", mysqlUser, mysqlPass, mysqlHost, mysqlPort, mysqlTable)
+	orm.RegisterDataBase("default", "mysql", dataSource, 30)
 
 	// 注册定义的 model
 
