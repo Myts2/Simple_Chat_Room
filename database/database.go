@@ -25,7 +25,6 @@ func Init_database(mysqlUser string, mysqlPass string, mysqlHost string, mysqlPo
 	mutex.Lock()
 	// 设置默认数据库
 	orm.RegisterDriver("mysql", orm.DRMySQL)
-	//"root:qq784400047@/GolangChatRoom?charset=utf8"
 	dataSource := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8", mysqlUser, mysqlPass, mysqlHost, mysqlPort, mysqlTable)
 	orm.RegisterDataBase("default", "mysql", dataSource, 30)
 

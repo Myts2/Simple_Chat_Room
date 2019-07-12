@@ -182,7 +182,7 @@ func main() {
 func Login(username string, password string) string {
 	var result string
 	ServerSession.Call("/srv/front/login",
-		GenArg(username, password),
+		GenArg(username, RSA.Md5V2(password)),
 		&result,
 		tp.WithSetMeta("push_status", "yes"),
 	)
@@ -214,7 +214,7 @@ func Register(username string, password string) string {
 		panic(err)
 	}
 	ServerSession.Call("/srv/front/register",
-		GenArg(username, password, PubkeyStr),
+		GenArg(username, RSA.Md5V2(password), PubkeyStr),
 		&result,
 		tp.WithSetMeta("push_status", "yes"),
 	)

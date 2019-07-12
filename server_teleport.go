@@ -320,12 +320,3 @@ func (m *Front) RecvOfflineMsg(arg_raw *string) (string, *tp.Rerror) {
 	}
 	return "Wrong Token", nil
 }
-
-func (m *Front) Test(arg_raw *string) (string, rerror *tp.Rerror) {
-	arg := strings.Split(*arg_raw, ",")
-	m.Session().Push(
-		"/cli/push/server_status",
-		fmt.Sprintf("Arg:%s,Username:%s,Password_md5:%s", *arg_raw, arg[0], arg[1]),
-	)
-	return nil, nil
-}
