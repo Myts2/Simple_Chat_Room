@@ -4,7 +4,7 @@ go: 1.11.x
 
 go_import_path: github.com/Myts2/Simple_Chat_Room
 
-install: go get -u -v -f github.com/henrylee2cn/teleport && go get -t -v ./... && ls /home/travis/gopath/src/github.com/henrylee2cn/teleport&& go build -o server_chat server_teleport.go && go build -o client_chat client/client.go
+install: go get -u -v -f github.com/henrylee2cn/teleport && go get -t -v ./... && go build -o server_chat && go build -o client_chat ./client/
 
 before_deploy:
   - PLATFORMS=(darwin/386 darwin/amd64 freebsd/386 freebsd/amd64 freebsd/arm linux/386 linux/amd64 linux/arm windows/386 windows/amd64)
