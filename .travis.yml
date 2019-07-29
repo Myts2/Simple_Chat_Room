@@ -1,6 +1,8 @@
 language: go
 
-go: 1.x
+go: 1.11.x
+
+go_import_path: github.com/Myts2/Simple_Chat_Room
 
 install: go get -u -f github.com/henrylee2cn/teleport && go get -t -v ./... && go build -o server_chat server_teleport.go && go build -o client_chat client/client.go
 
